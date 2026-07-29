@@ -1,0 +1,181 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+
+from utils.database import (
+    add_game,
+    edit_game,
+    delete_game,
+    get_game,
+    get_all_games
+)
+
+from config import OWNER_ID
+
+
+def is_admin(interaction: discord.Interaction):
+    return (
+        interaction.user.id == OWNER_ID
+        or interaction.user.guild_permissions.administrator
+    )
+
+
+class GameCreateModal(discord.ui.Modal, title="Create Game"):
+
+    game_name = discord.ui.TextInput(
+        label="Game Name",
+        max_length=100
+    )
+
+    status = discord.ui.TextInput(
+        label="Status",
+        placeholder="Online"
+    )
+
+    event = discord.ui.TextInput(
+        label="Event"
+    )
+
+    event_key = discord.ui.TextInput(
+        label="Event Key",
+        required=False
+    )
+
+    link = discord.ui.TextInput(
+        label="Link"
+    )
+
+    thumbnail = discord.ui.TextInput(
+        label="Thumbnail URL",
+        required=False
+    )
+
+    image = discord.ui.TextInput(
+        label="Image URL",
+        required=False
+    )
+
+    async def on_submit(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        games = get_all_games()
+
+        if str(self.game_name) in games:
+
+            await interaction.response.send_message(
+                "❌ Game already exists.",
+                ephemeral=True
+            )
+            return
+
+        add_game(
+            str(self.game_name),
+            str(self.status),
+            str(self.event),
+            str(self.event_key),
+            str(self.link),
+            str(self.thumbnail),
+            str(self.image)
+        )
+
+        await interaction.response.send_message(
+            "✅ Game created successfully.",
+            ephemeral=True
+        )
+
+
+class GameEditModal(discord.ui.Modal):
+
+    def __init__(self, game_name, data):
+
+        super().__init__(title=f"Edit {game_name}")
+
+        self.game_name = game_name
+
+        self.status = discord.ui.TextInput(
+            label="Status",
+            default=data["status"]
+        )
+
+        self.event = discord.ui.TextInput(
+            label="Event",
+            default=data["event"]
+        )
+
+        self.event_key = discord.ui.TextInput(
+            label="Event Key",
+            default=data["event_key"],
+            required=False
+        )
+
+        self.link = discord.ui.TextInput(
+            label="Link",
+            default=data["link"]
+        )
+
+        self.thumbnail = discord.ui.TextInput(
+            label="Thumbnail URL",
+            default=data["thumbnail"],
+            required=False
+        )
+
+        self.image = discord.ui.TextInput(
+            label="Image URL",
+            default=data["image"],
+            required=False
+        )
+
+        self.add_item(self.status)
+        self.add_item(self.event)
+        self.add_item(self.event_key)
+        self.add_item(self.link)
+        self.add_item(self.thumbnail)
+        self.add_item(self.image)
+
+    async def on_submit(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        edit_game(
+            self.game_name,
+            str(self.status),
+            str(self.event),
+            str(self.event_key),
+            str(self.link),
+            str(self.thumbnail),
+            str(self.image)
+        )
+
+        await interaction.response.send_message(
+            "✅ Game updated successfully.",
+            ephemeral=True
+        )
+
+
+class Admin(commands.Cog):
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(
+        name="game-create",
+        description="Create a game."
+    )
+    async def game_create(
+        self,
+        interaction: discord.Interaction
+    ):
+
+        if not is_admin(interaction):
+            await interaction.response.send_message(
+                "❌ No Permission",
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.send_modal(
+            GameCreateModal()
+        )
